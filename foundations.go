@@ -2,9 +2,11 @@ package main
 
 import (
 	"fmt"
-	fig "golang-course/src/figures"
-	pk "golang-course/src/mypackage"
 	"sync"
+
+	pk "github.com/daluisgarcia/golang-course/mypackage"
+
+	fig "github.com/daluisgarcia/golang-course/figures"
 )
 
 func exampleFunction(message string) {
