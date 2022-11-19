@@ -1,10 +1,12 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
+	"io"
 	"log"
 	"net/http"
-	"strconv"
+	"strings"
 	"time"
 )
 
@@ -97,6 +99,12 @@ func Fibonacci(n int) int {
 	return Fibonacci(n-1) + Fibonacci(n-2)
 }
 
+type JobRequest struct {
+	Delay string
+	Name  string
+	Value int
+}
+
 func RequestHandler(w http.ResponseWriter, r *http.Request, jobQueue chan Job) {
 	if r.Method != "POST" {
 		w.Header().Set("Allow", "POST")
@@ -104,28 +112,32 @@ func RequestHandler(w http.ResponseWriter, r *http.Request, jobQueue chan Job) {
 		return
 	}
 
-	delay, err := time.ParseDuration(r.FormValue("delay"))
-	if err != nil {
-		http.Error(w, "Invalid delay", http.StatusBadRequest)
+	defer r.Body.Close()
+	body, _ := io.ReadAll(r.Body)
+
+	var jobRequest JobRequest
+
+	if err := json.Unmarshal(body, &jobRequest); err != nil {
+		errorSolutionInfo := strings.Split(strings.Split(err.Error(), ".")[1], " ") // Getting important info from error message
+		http.Error(w, errorSolutionInfo[0]+" field must be of type "+errorSolutionInfo[3], http.StatusBadRequest)
 		return
 	}
 
-	value, err := strconv.Atoi(r.FormValue("value"))
+	delay, err := time.ParseDuration(jobRequest.Delay)
 	if err != nil {
-		http.Error(w, "Invalid value", http.StatusBadRequest)
+		http.Error(w, "Invalid delay format", http.StatusBadRequest)
 		return
 	}
 
-	name := r.FormValue("name")
-	if name == "" {
-		http.Error(w, "Invalid name", http.StatusBadRequest)
+	if jobRequest.Name == "" {
+		http.Error(w, "Invalid name length", http.StatusBadRequest)
 		return
 	}
 
 	job := Job{
-		Name:   name,
+		Name:   jobRequest.Name,
 		Delay:  delay,
-		Number: value,
+		Number: jobRequest.Value,
 	}
 	jobQueue <- job
 	w.WriteHeader(http.StatusCreated)
